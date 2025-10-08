@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "invoice-search-jp"
+version = "0.1.0"
+description = "日本のインボイス登録事業者検索ツール"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Hiroshi" }
+]
+keywords = ["invoice", "japan", "tax", "registration", "search"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "httpx>=0.27.0",
+    "duckdb>=1.0.0",
+    "rich>=13.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hiroshi/invoice-search-jp"
+Repository = "https://github.com/hiroshi/invoice-search-jp"
+Issues = "https://github.com/hiroshi/invoice-search-jp/issues"
+
+[project.scripts]
+invoice_search_jp = "invoice_search_jp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["invoice_search_jp"]
