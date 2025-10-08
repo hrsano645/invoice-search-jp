@@ -27,28 +27,32 @@
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### インストール（オプション）
+### インストール方法
 
-毎回長いコマンドを打ちたくない場合は、インストールできます。
+#### インストールして使う（推奨）
 
 ```bash
 uv tool install git+https://github.com/hrsano645/invoice-search-jp.git
 ```
 
-インストール後は短いコマンドで実行可能：
+#### 直接実行（インストール不要）
+
+インストールせずに、毎回GitHubから直接実行することもできます。
 
 ```bash
-invoice_search_jp init
-invoice_search_jp search "苫小牧市"
-invoice_search_jp lookup T1000020012131
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp init
 ```
+
+以下のサンプルコマンドは、インストール済みを前提としています。
+
+---
 
 ### 1. データ初期化（初回のみ）
 
 国税庁から法人データをダウンロードします（初回のみ、約1-2分）。
 
 ```bash
-uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp init
+invoice_search_jp init
 ```
 
 ### 2. 事業者名で検索（逆引き）
@@ -57,13 +61,13 @@ uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search
 
 ```bash
 # 市町村名で検索
-uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp search "苫小牧市"
+invoice_search_jp search "苫小牧市"
 
 # 企業名で検索
-uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp search "株式会社"
+invoice_search_jp search "株式会社"
 
 # 住所で検索
-uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp search "北海道"
+invoice_search_jp search "北海道"
 ```
 
 **出力例**:
@@ -82,7 +86,7 @@ uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search
 登録番号（T+13桁）で事業者情報を検索します。
 
 ```bash
-uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp lookup T1000020012131
+invoice_search_jp lookup T1000020012131
 ```
 
 **出力例**:
@@ -103,7 +107,7 @@ uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search
 ```bash
 # 最新データに更新
 rm -rf ~/.local/share/invoice_search_jp
-uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp init
+invoice_search_jp init
 ```
 
 ## ローカル開発・カスタマイズ
@@ -153,7 +157,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ```bash
 # 初回または更新時に実行
-uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp init
+invoice_search_jp init
 ```
 
 ### `ダウンロードエラー`
