@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-日本のインボイス登録事業者検索ツール（DuckDB + Parquet版）
+日本のインボイス登録事業者検索ツール
 """
 
 import sys
