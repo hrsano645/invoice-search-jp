@@ -18,41 +18,37 @@
 - 個人プロジェクトのため、問題への対応が遅れる場合があります
 - データの正確性や最新性については、必ず[国税庁公式サイト](https://www.invoice-kohyo.nta.go.jp/)で確認してください
 
-## インストール
-
-### ローカル開発・カスタマイズ
-
-```bash
-# リポジトリをクローン
-git clone <repository-url>
-cd invoice-search-jp
-
-# uv がインストールされていない場合
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# パッケージをインストール
-uv pip install -e .
-```
-
-### uvxで直接実行（推奨）
-
-```bash
-# uv がインストールされていない場合
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 以下のコマンドで直接実行可能（リポジトリのクローン後）
-cd invoice-search-jp
-uvx --from . invoice_search_jp init
-```
-
 ## 使い方
+
+### 必要なもの
+
+```bash
+# uv がインストールされていない場合
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### インストール（オプション）
+
+毎回長いコマンドを打ちたくない場合は、インストールできます。
+
+```bash
+uv tool install git+https://github.com/hrsano645/invoice-search-jp.git
+```
+
+インストール後は短いコマンドで実行可能：
+
+```bash
+invoice_search_jp init
+invoice_search_jp search "苫小牧市"
+invoice_search_jp lookup T1000020012131
+```
 
 ### 1. データ初期化（初回のみ）
 
 国税庁から法人データをダウンロードします（初回のみ、約1-2分）。
 
 ```bash
-invoice_search_jp init
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp init
 ```
 
 ### 2. 事業者名で検索（逆引き）
@@ -61,13 +57,13 @@ invoice_search_jp init
 
 ```bash
 # 市町村名で検索
-invoice_search_jp search "苫小牧市"
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp search "苫小牧市"
 
 # 企業名で検索
-invoice_search_jp search "株式会社"
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp search "株式会社"
 
 # 住所で検索
-invoice_search_jp search "北海道"
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp search "北海道"
 ```
 
 **出力例**:
@@ -86,7 +82,7 @@ invoice_search_jp search "北海道"
 登録番号（T+13桁）で事業者情報を検索します。
 
 ```bash
-invoice_search_jp lookup T1000020012131
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp lookup T1000020012131
 ```
 
 **出力例**:
@@ -107,6 +103,19 @@ invoice_search_jp lookup T1000020012131
 ```bash
 # 最新データに更新
 rm -rf ~/.local/share/invoice_search_jp
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp init
+```
+
+## ローカル開発・カスタマイズ
+
+コードを編集したい場合は、リポジトリをクローンしてください。
+
+```bash
+git clone https://github.com/hrsano645/invoice-search-jp.git
+cd invoice-search-jp
+uv pip install -e .
+
+# コマンド実行
 invoice_search_jp init
 ```
 
@@ -144,7 +153,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ```bash
 # 初回または更新時に実行
-invoice_search_jp init
+uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search_jp init
 ```
 
 ### `ダウンロードエラー`
