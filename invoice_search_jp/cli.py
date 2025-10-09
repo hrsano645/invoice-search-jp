@@ -8,6 +8,7 @@ import sys
 import zipfile
 from pathlib import Path
 from typing import Optional
+from importlib.metadata import version, PackageNotFoundError
 import httpx
 import duckdb
 from rich.console import Console
@@ -225,11 +226,20 @@ def main():
         rprint("  invoice_search_jp init                 # データ初期化")
         rprint("  invoice_search_jp search <事業者名>     # 事業者名で検索")
         rprint("  invoice_search_jp lookup <登録番号>     # 登録番号で検索")
+        rprint("  invoice_search_jp --version, -v        # バージョン表示")
         sys.exit(1)
 
     command = sys.argv[1]
 
-    if command == "init":
+    if command in ("--version", "-v"):
+        try:
+            pkg_version = version("invoice-search-jp")
+            rprint(f"invoice_search_jp version {pkg_version}")
+        except PackageNotFoundError:
+            rprint("[yellow]バージョン情報が取得できません（開発モードの可能性があります）[/yellow]")
+        sys.exit(0)
+
+    elif command == "init":
         rprint("[cyan]インボイスデータを初期化します...[/cyan]")
         if init_data():
             rprint("[green]✓ 初期化完了[/green]")
