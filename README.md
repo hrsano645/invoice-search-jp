@@ -51,6 +51,8 @@ uvx --from git+https://github.com/hrsano645/invoice-search-jp.git invoice_search
 
 国税庁から法人データをダウンロードします（初回のみ、約1-2分）。
 
+データの保存先は、`~/.local/share/invoice_search_jp` です。
+
 ```bash
 invoice_search_jp init
 ```
