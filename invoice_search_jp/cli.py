@@ -132,7 +132,7 @@ def init_data():
             return False
 
 
-def search_by_name(query: str, limit: int = 20):
+def search_by_name(query: str, limit: int = 20, page: int = 1):
     """事業者名で検索"""
     if not PARQUET_FILE.exists():
         rprint("[red]エラー:[/red] データが初期化されていません")
@@ -142,7 +142,36 @@ def search_by_name(query: str, limit: int = 20):
     try:
         con = duckdb.connect()
 
-        # 事業者名と住所で検索
+        # 総件数を取得
+        total_count = con.execute(f"""
+            SELECT COUNT(*)
+            FROM '{PARQUET_FILE}'
+            WHERE
+                "name" LIKE '%{query}%'
+                OR "address" LIKE '%{query}%'
+        """).fetchone()[0]
+
+        if total_count == 0:
+            rprint(f"[yellow]'{query}' に一致する事業者が見つかりませんでした[/yellow]")
+            con.close()
+            return
+
+        # ページネーション用のオフセット計算
+        offset = (page - 1) * limit
+        total_pages = (total_count + limit - 1) // limit  # 切り上げ
+
+        # ページ番号の検証
+        if page < 1:
+            rprint(f"[red]エラー:[/red] ページ番号は1以上を指定してください")
+            con.close()
+            return
+        
+        if offset >= total_count:
+            rprint(f"[red]エラー:[/red] ページ番号が範囲外です（全{total_pages}ページ）")
+            con.close()
+            return
+
+        # 事業者名と住所で検索（ページネーション対応）
         result = con.execute(f"""
             SELECT registratedNumber, name, address, addressPrefectureCode, registrationDate
             FROM '{PARQUET_FILE}'
@@ -150,27 +179,31 @@ def search_by_name(query: str, limit: int = 20):
                 "name" LIKE '%{query}%'
                 OR "address" LIKE '%{query}%'
             LIMIT {limit}
+            OFFSET {offset}
         """).fetchall()
 
-        if not result:
-            rprint(f"[yellow]'{query}' に一致する事業者が見つかりませんでした[/yellow]")
-            return
-
         # 結果を表示
-        table = Table(title=f"検索結果: '{query}' ({len(result)}件)")
-        table.add_column("登録番号", style="cyan", width=16)
-        table.add_column("名称", style="white", width=30)
-        table.add_column("所在地", style="white", width=40)
-        table.add_column("都道府県", style="green", width=4)
-        table.add_column("登録日", style="yellow", width=12)
+        # expand=Trueでターミナル幅いっぱいに展開、ratioで列幅の比率を制御
+        table = Table(
+            title=f"検索結果: '{query}' ({len(result)}件 / 全{total_count}件) - ページ {page}/{total_pages}",
+            expand=True
+        )
+        table.add_column("登録番号", style="cyan", ratio=1, overflow="fold")
+        table.add_column("名称", style="white", ratio=2, overflow="fold")
+        table.add_column("所在地", style="white", ratio=3, overflow="fold")
+        table.add_column("都道府県", style="green", ratio=1, overflow="fold")
+        table.add_column("登録日", style="yellow", ratio=1, overflow="fold")
 
         for row in result:
             table.add_row(*[str(v) if v else "" for v in row])
 
         console.print(table)
 
-        if len(result) == limit:
-            rprint(f"[yellow]※ 結果が多いため{limit}件のみ表示しています[/yellow]")
+        # ページネーション情報の表示
+        if page < total_pages:
+            rprint(f"[yellow]次のページ:[/yellow] invoice_search_jp search '{query}' --page {page + 1}")
+        if total_count > limit:
+            rprint(f"[dim]表示件数を変更: --limit オプションを使用[/dim]")
 
         con.close()
 
@@ -223,10 +256,12 @@ def lookup_by_number(number: str):
 def main():
     if len(sys.argv) < 2:
         rprint("[yellow]Usage:[/yellow]")
-        rprint("  invoice_search_jp init                 # データ初期化")
-        rprint("  invoice_search_jp search <事業者名>     # 事業者名で検索")
-        rprint("  invoice_search_jp lookup <登録番号>     # 登録番号で検索")
-        rprint("  invoice_search_jp --version, -v        # バージョン表示")
+        rprint("  invoice_search_jp init                           # データ初期化")
+        rprint("  invoice_search_jp search <事業者名>               # 事業者名で検索")
+        rprint("  invoice_search_jp search <事業者名> --page 2      # ページ指定")
+        rprint("  invoice_search_jp search <事業者名> --limit 50    # 表示件数指定")
+        rprint("  invoice_search_jp lookup <登録番号>               # 登録番号で検索")
+        rprint("  invoice_search_jp --version, -v                  # バージョン表示")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -254,7 +289,38 @@ def main():
             sys.exit(1)
 
         query = sys.argv[2]
-        search_by_name(query)
+        
+        # オプション引数の解析
+        limit = 20
+        page = 1
+        
+        i = 3
+        while i < len(sys.argv):
+            if sys.argv[i] == "--limit" and i + 1 < len(sys.argv):
+                try:
+                    limit = int(sys.argv[i + 1])
+                    if limit < 1:
+                        rprint("[red]エラー:[/red] --limit は1以上を指定してください")
+                        sys.exit(1)
+                    i += 2
+                except ValueError:
+                    rprint("[red]エラー:[/red] --limit には数値を指定してください")
+                    sys.exit(1)
+            elif sys.argv[i] == "--page" and i + 1 < len(sys.argv):
+                try:
+                    page = int(sys.argv[i + 1])
+                    if page < 1:
+                        rprint("[red]エラー:[/red] --page は1以上を指定してください")
+                        sys.exit(1)
+                    i += 2
+                except ValueError:
+                    rprint("[red]エラー:[/red] --page には数値を指定してください")
+                    sys.exit(1)
+            else:
+                rprint(f"[red]エラー:[/red] 不明なオプション '{sys.argv[i]}'")
+                sys.exit(1)
+        
+        search_by_name(query, limit=limit, page=page)
 
     elif command == "lookup":
         if len(sys.argv) < 3:
