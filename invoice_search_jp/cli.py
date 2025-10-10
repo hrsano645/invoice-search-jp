@@ -6,6 +6,8 @@
 
 import sys
 import zipfile
+import json
+import csv
 from pathlib import Path
 from typing import Optional
 from importlib.metadata import version, PackageNotFoundError
@@ -132,7 +134,7 @@ def init_data():
             return False
 
 
-def search_by_name(query: str, limit: int = 20, page: int = 1):
+def search_by_name(query: str, limit: int = 20, page: int = 1, output_format: str = "table"):
     """事業者名で検索"""
     if not PARQUET_FILE.exists():
         rprint("[red]エラー:[/red] データが初期化されていません")
@@ -152,7 +154,8 @@ def search_by_name(query: str, limit: int = 20, page: int = 1):
         """).fetchone()[0]
 
         if total_count == 0:
-            rprint(f"[yellow]'{query}' に一致する事業者が見つかりませんでした[/yellow]")
+            if output_format == "table":
+                rprint(f"[yellow]'{query}' に一致する事業者が見つかりませんでした[/yellow]")
             con.close()
             return
 
@@ -162,12 +165,14 @@ def search_by_name(query: str, limit: int = 20, page: int = 1):
 
         # ページ番号の検証
         if page < 1:
-            rprint(f"[red]エラー:[/red] ページ番号は1以上を指定してください")
+            if output_format == "table":
+                rprint(f"[red]エラー:[/red] ページ番号は1以上を指定してください")
             con.close()
             return
         
         if offset >= total_count:
-            rprint(f"[red]エラー:[/red] ページ番号が範囲外です（全{total_pages}ページ）")
+            if output_format == "table":
+                rprint(f"[red]エラー:[/red] ページ番号が範囲外です（全{total_pages}ページ）")
             con.close()
             return
 
@@ -182,28 +187,44 @@ def search_by_name(query: str, limit: int = 20, page: int = 1):
             OFFSET {offset}
         """).fetchall()
 
-        # 結果を表示
-        # expand=Trueでターミナル幅いっぱいに展開、ratioで列幅の比率を制御
-        table = Table(
-            title=f"検索結果: '{query}' ({len(result)}件 / 全{total_count}件) - ページ {page}/{total_pages}",
-            expand=True
-        )
-        table.add_column("登録番号", style="cyan", ratio=1, overflow="fold")
-        table.add_column("名称", style="white", ratio=2, overflow="fold")
-        table.add_column("所在地", style="white", ratio=3, overflow="fold")
-        table.add_column("都道府県", style="green", ratio=1, overflow="fold")
-        table.add_column("登録日", style="yellow", ratio=1, overflow="fold")
+        columns = ["registratedNumber", "name", "address", "addressPrefectureCode", "registrationDate"]
 
-        for row in result:
-            table.add_row(*[str(v) if v else "" for v in row])
+        # 出力形式に応じて表示
+        if output_format == "csv":
+            writer = csv.writer(sys.stdout)
+            writer.writerow(columns)
+            for row in result:
+                writer.writerow([str(v) if v else "" for v in row])
+        
+        elif output_format == "json":
+            data = []
+            for row in result:
+                data.append(dict(zip(columns, [str(v) if v else "" for v in row])))
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+        
+        else:  # table
+            # 結果を表示
+            # expand=Trueでターミナル幅いっぱいに展開、ratioで列幅の比率を制御
+            table = Table(
+                title=f"検索結果: '{query}' ({len(result)}件 / 全{total_count}件) - ページ {page}/{total_pages}",
+                expand=True
+            )
+            table.add_column("登録番号", style="cyan", ratio=1, overflow="fold")
+            table.add_column("名称", style="white", ratio=2, overflow="fold")
+            table.add_column("所在地", style="white", ratio=3, overflow="fold")
+            table.add_column("都道府県", style="green", ratio=1, overflow="fold")
+            table.add_column("登録日", style="yellow", ratio=1, overflow="fold")
 
-        console.print(table)
+            for row in result:
+                table.add_row(*[str(v) if v else "" for v in row])
 
-        # ページネーション情報の表示
-        if page < total_pages:
-            rprint(f"[yellow]次のページ:[/yellow] invoice_search_jp search '{query}' --page {page + 1}")
-        if total_count > limit:
-            rprint(f"[dim]表示件数を変更: --limit オプションを使用[/dim]")
+            console.print(table)
+
+            # ページネーション情報の表示
+            if page < total_pages:
+                rprint(f"[yellow]次のページ:[/yellow] invoice_search_jp search '{query}' --page {page + 1}")
+            if total_count > limit:
+                rprint(f"[dim]表示件数を変更: --limit オプションを使用[/dim]")
 
         con.close()
 
@@ -211,7 +232,7 @@ def search_by_name(query: str, limit: int = 20, page: int = 1):
         rprint(f"[red]検索エラー:[/red] {e}")
 
 
-def lookup_by_number(number: str):
+def lookup_by_number(number: str, output_format: str = "table"):
     """登録番号で検索"""
     if not PARQUET_FILE.exists():
         rprint("[red]エラー:[/red] データが初期化されていません")
@@ -232,21 +253,34 @@ def lookup_by_number(number: str):
         """).fetchone()
 
         if not result:
-            rprint(f"[red]登録番号 {number} は見つかりませんでした[/red]")
+            if output_format == "table":
+                rprint(f"[red]登録番号 {number} は見つかりませんでした[/red]")
+            con.close()
             return
 
         # 結果を表示
         columns = [desc[0] for desc in con.description]
 
-        table = Table(title=f"登録事業者情報: {number}", show_header=False)
-        table.add_column("項目", style="cyan", width=20)
-        table.add_column("内容", style="white")
+        if output_format == "csv":
+            writer = csv.writer(sys.stdout)
+            writer.writerow(columns)
+            writer.writerow([str(v) if v else "" for v in result])
+        
+        elif output_format == "json":
+            data = dict(zip(columns, [str(v) if v else "" for v in result]))
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+        
+        else:  # table
+            table = Table(title=f"登録事業者情報: {number}", show_header=False)
+            table.add_column("項目", style="cyan", width=20)
+            table.add_column("内容", style="white")
 
-        for col, val in zip(columns, result):
-            if val:
-                table.add_row(col, str(val))
+            for col, val in zip(columns, result):
+                if val:
+                    table.add_row(col, str(val))
 
-        console.print(table)
+            console.print(table)
+        
         con.close()
 
     except Exception as e:
@@ -260,7 +294,10 @@ def main():
         rprint("  invoice_search_jp search <事業者名>               # 事業者名で検索")
         rprint("  invoice_search_jp search <事業者名> --page 2      # ページ指定")
         rprint("  invoice_search_jp search <事業者名> --limit 50    # 表示件数指定")
+        rprint("  invoice_search_jp search <事業者名> --format csv  # CSV形式で出力")
+        rprint("  invoice_search_jp search <事業者名> --format json # JSON形式で出力")
         rprint("  invoice_search_jp lookup <登録番号>               # 登録番号で検索")
+        rprint("  invoice_search_jp lookup <登録番号> --format csv  # CSV形式で出力")
         rprint("  invoice_search_jp --version, -v                  # バージョン表示")
         sys.exit(1)
 
@@ -293,6 +330,7 @@ def main():
         # オプション引数の解析
         limit = 20
         page = 1
+        output_format = "table"
         
         i = 3
         while i < len(sys.argv):
@@ -316,11 +354,17 @@ def main():
                 except ValueError:
                     rprint("[red]エラー:[/red] --page には数値を指定してください")
                     sys.exit(1)
+            elif sys.argv[i] == "--format" and i + 1 < len(sys.argv):
+                output_format = sys.argv[i + 1].lower()
+                if output_format not in ("table", "csv", "json"):
+                    rprint("[red]エラー:[/red] --format は table, csv, json のいずれかを指定してください")
+                    sys.exit(1)
+                i += 2
             else:
                 rprint(f"[red]エラー:[/red] 不明なオプション '{sys.argv[i]}'")
                 sys.exit(1)
         
-        search_by_name(query, limit=limit, page=page)
+        search_by_name(query, limit=limit, page=page, output_format=output_format)
 
     elif command == "lookup":
         if len(sys.argv) < 3:
@@ -329,7 +373,22 @@ def main():
             sys.exit(1)
 
         number = sys.argv[2]
-        lookup_by_number(number)
+        output_format = "table"
+        
+        # オプション引数の解析
+        i = 3
+        while i < len(sys.argv):
+            if sys.argv[i] == "--format" and i + 1 < len(sys.argv):
+                output_format = sys.argv[i + 1].lower()
+                if output_format not in ("table", "csv", "json"):
+                    rprint("[red]エラー:[/red] --format は table, csv, json のいずれかを指定してください")
+                    sys.exit(1)
+                i += 2
+            else:
+                rprint(f"[red]エラー:[/red] 不明なオプション '{sys.argv[i]}'")
+                sys.exit(1)
+        
+        lookup_by_number(number, output_format=output_format)
 
     else:
         rprint(f"[red]エラー:[/red] 不明なコマンド '{command}'")

@@ -79,6 +79,15 @@ invoice_search_jp search "株式会社" --limit 50
 
 # 組み合わせも可能
 invoice_search_jp search "株式会社" --page 3 --limit 50
+
+# CSV形式で出力（他のツールと連携）
+invoice_search_jp search "苫小牧市" --format csv
+
+# JSON形式で出力（他のツールと連携）
+invoice_search_jp search "苫小牧市" --format json
+
+# 出力形式の組み合わせも可能
+invoice_search_jp search "苫小牧市" --limit 100 --format csv > result.csv
 ```
 
 **出力例**:
@@ -94,12 +103,38 @@ invoice_search_jp search "株式会社" --page 3 --limit 50
 表示件数を変更: --limit オプションを使用
 ```
 
+**CSV出力例**:
+```csv
+registratedNumber,name,address,addressPrefectureCode,registrationDate
+T1000020012131,苫小牧市,北海道苫小牧市旭町４丁目５番６号,01,2023-10-01
+T1430001015131,株式会社○○,北海道苫小牧市...,01,2023-10-01
+```
+
+**JSON出力例**:
+```json
+[
+  {
+    "registratedNumber": "T1000020012131",
+    "name": "苫小牧市",
+    "address": "北海道苫小牧市旭町４丁目５番６号",
+    "addressPrefectureCode": "01",
+    "registrationDate": "2023-10-01"
+  }
+]
+```
+
 ### 3. 登録番号で検索
 
 登録番号（T+13桁）で事業者情報を検索します。
 
 ```bash
 invoice_search_jp lookup T1000020012131
+
+# CSV形式で出力
+invoice_search_jp lookup T1000020012131 --format csv
+
+# JSON形式で出力
+invoice_search_jp lookup T1000020012131 --format json
 ```
 
 **出力例**:
@@ -111,6 +146,12 @@ invoice_search_jp lookup T1000020012131
 │ address            │ 北海道苫小牧市旭町４丁目…  │
 │ registrationDate   │ 2023-10-01                 │
 └────────────────────┴────────────────────────────┘
+```
+
+**CSV出力例**:
+```csv
+sequenceNumber,registratedNumber,process,correct,kind,country,latest,registrationDate,updateDate,disposalDate,expireDate,address,addressPrefectureCode,addressCityCode,addressRequest,addressRequestPrefectureCode,addressRequestCityCode,kana,name,addressInside,addressInsidePrefectureCode,addressInsideCityCode,tradeName,popularName_previousName
+1,T1000020012131,01,0,1,,1,2023-10-01,,,,北海道苫小牧市旭町４丁目５番６号,01,01234,,,,トマコマイシ,苫小牧市,,,,
 ```
 
 ## データ更新
@@ -154,7 +195,7 @@ invoice_search_jp init
 
 - [ ] 個人事業主・人格なし社団等のデータ対応
 - [ ] 差分データでの増分更新
-- [ ] 標準出力へのCSV/JSON形式での出力対応
+- [x] 標準出力へのCSV/JSON形式での出力対応
 - [ ] 検索速度の最適化
 
 ## トラブルシューティング
