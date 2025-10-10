@@ -184,11 +184,12 @@ def search_by_name(query: str, limit: int = 20, page: int = 1):
 
         # 結果を表示
         table = Table(title=f"検索結果: '{query}' ({len(result)}件 / 全{total_count}件) - ページ {page}/{total_pages}")
-        table.add_column("登録番号", style="cyan", width=16, overflow="fold")
-        table.add_column("名称", style="white", width=30, overflow="fold")
-        table.add_column("所在地", style="white", width=40, overflow="fold")
-        table.add_column("都道府県", style="green", width=4, overflow="fold")
-        table.add_column("登録日", style="yellow", width=12, overflow="fold")
+        # width指定なし＋overflow='fold'で自動調整＆折り返し
+        table.add_column("登録番号", style="cyan", overflow="fold")
+        table.add_column("名称", style="white", overflow="fold")
+        table.add_column("所在地", style="white", overflow="fold")
+        table.add_column("都道府県", style="green", overflow="fold")
+        table.add_column("登録日", style="yellow", overflow="fold")
 
         for row in result:
             table.add_row(*[str(v) if v else "" for v in row])
