@@ -71,6 +71,13 @@ invoice_search_jp search "株式会社"
 # 住所で検索
 invoice_search_jp search "北海道"
 
+# 都道府県を指定して検索
+invoice_search_jp search "株式会社" -p 東京
+invoice_search_jp search "株式会社" --prefecture 大阪
+
+# 半角数字でも検索可能（自動で全角に変換）
+invoice_search_jp search "4丁目"  # 「４丁目」を含む住所がヒット
+
 # ページネーション - 2ページ目を表示
 invoice_search_jp search "株式会社" --page 2
 
@@ -227,7 +234,8 @@ invoice_search_jp init
 - [x] 標準出力へのCSV/JSON形式での出力対応（v0.3.0で実装済み）
 - [x] 動的ファイルID取得（v0.4.0で実装済み）
 - [ ] 検索速度の最適化
-- [ ] 半角/全角の正規化対応
+- [x] 半角/全角の正規化対応（v0.5.0で実装済み）
+- [x] 都道府県フィルター機能（v0.5.0で実装済み）
 
 ## トラブルシューティング
 
