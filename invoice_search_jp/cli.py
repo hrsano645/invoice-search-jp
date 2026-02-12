@@ -42,6 +42,34 @@ def get_download_url(file_id: int, entity_type: str = "2", file_type: str = "01"
 
 console = Console()
 
+# 都道府県コードマッピング
+PREFECTURE_CODES = {
+    "北海道": "01", "青森": "02", "岩手": "03", "宮城": "04", "秋田": "05",
+    "山形": "06", "福島": "07", "茨城": "08", "栃木": "09", "群馬": "10",
+    "埼玉": "11", "千葉": "12", "東京": "13", "神奈川": "14", "新潟": "15",
+    "富山": "16", "石川": "17", "福井": "18", "山梨": "19", "長野": "20",
+    "岐阜": "21", "静岡": "22", "愛知": "23", "三重": "24", "滋賀": "25",
+    "京都": "26", "大阪": "27", "兵庫": "28", "奈良": "29", "和歌山": "30",
+    "鳥取": "31", "島根": "32", "岡山": "33", "広島": "34", "山口": "35",
+    "徳島": "36", "香川": "37", "愛媛": "38", "高知": "39", "福岡": "40",
+    "佐賀": "41", "長崎": "42", "熊本": "43", "大分": "44", "宮崎": "45",
+    "鹿児島": "46", "沖縄": "47",
+}
+
+# 逆引きマッピング（コード→都道府県名）
+CODE_TO_PREFECTURE = {v: k for k, v in PREFECTURE_CODES.items()}
+
+
+def normalize_query(query: str) -> str:
+    """検索クエリを正規化（半角→全角変換）"""
+    # ASCII printable（0x0021-0x007E）→ 全角（0xFF01-0xFF5E）
+    # 半角スペース（0x0020）→ 全角スペース（0x3000）
+    table = str.maketrans(
+        ''.join(chr(i) for i in range(0x0020, 0x007F)),
+        ''.join(chr(0x3000) if i == 0x0020 else chr(i + 0xFEE0) for i in range(0x0020, 0x007F))
+    )
+    return query.translate(table)
+
 
 def load_metadata() -> dict:
     """メタデータを読み込む"""
@@ -476,7 +504,7 @@ def init_data():
             metadata = {
                 "full_update_date": now.isoformat(),
                 "data_as_of": data_as_of.isoformat(),
-                "version": "0.4.0"
+                "version": "0.5.0"
             }
             save_metadata(metadata)
 
@@ -550,7 +578,7 @@ def show_status():
     console.print(table)
 
 
-def search_by_name(query: str, limit: int = 20, page: int = 1, output_format: str = "table"):
+def search_by_name(query: str, limit: int = 20, page: int = 1, output_format: str = "table", prefecture: Optional[str] = None):
     """事業者名で検索"""
     if not PARQUET_FILE.exists():
         rprint("[red]エラー:[/red] データが初期化されていません")
@@ -560,13 +588,37 @@ def search_by_name(query: str, limit: int = 20, page: int = 1, output_format: st
     try:
         con = duckdb.connect()
 
+        # クエリを正規化（半角→全角変換）
+        normalized = normalize_query(query)
+
+        # WHERE句の構築
+        # 元のクエリと正規化後が異なる場合は OR で両方検索
+        if normalized != query:
+            where_clause = f"""
+                ("name" LIKE '%{query}%' OR "name" LIKE '%{normalized}%')
+                OR ("address" LIKE '%{query}%' OR "address" LIKE '%{normalized}%')
+            """
+        else:
+            where_clause = f"""
+                "name" LIKE '%{query}%' OR "address" LIKE '%{query}%'
+            """
+
+        # 都道府県フィルター
+        pref_clause = ""
+        if prefecture:
+            pref_code = PREFECTURE_CODES.get(prefecture)
+            if pref_code:
+                pref_clause = f' AND "addressPrefectureCode" = \'{pref_code}\''
+            else:
+                rprint(f"[red]エラー: 不明な都道府県 '{prefecture}'[/red]")
+                con.close()
+                return
+
         # 総件数を取得
         total_count = con.execute(f"""
             SELECT COUNT(*)
             FROM '{PARQUET_FILE}'
-            WHERE
-                "name" LIKE '%{query}%'
-                OR "address" LIKE '%{query}%'
+            WHERE ({where_clause}){pref_clause}
         """).fetchone()[0]
 
         if total_count == 0:
@@ -596,9 +648,7 @@ def search_by_name(query: str, limit: int = 20, page: int = 1, output_format: st
         result = con.execute(f"""
             SELECT registratedNumber, name, address, addressPrefectureCode, registrationDate
             FROM '{PARQUET_FILE}'
-            WHERE
-                "name" LIKE '%{query}%'
-                OR "address" LIKE '%{query}%'
+            WHERE ({where_clause}){pref_clause}
             LIMIT {limit}
             OFFSET {offset}
         """).fetchall()
@@ -632,7 +682,15 @@ def search_by_name(query: str, limit: int = 20, page: int = 1, output_format: st
             table.add_column("登録日", style="yellow", ratio=1, overflow="fold")
 
             for row in result:
-                table.add_row(*[str(v) if v else "" for v in row])
+                # 都道府県コードを都道府県名に変換
+                pref_name = CODE_TO_PREFECTURE.get(str(row[3]), str(row[3])) if row[3] else ""
+                table.add_row(
+                    str(row[0]) if row[0] else "",  # registratedNumber
+                    str(row[1]) if row[1] else "",  # name
+                    str(row[2]) if row[2] else "",  # address
+                    pref_name,  # addressPrefectureCode → 都道府県名
+                    str(row[4]) if row[4] else "",  # registrationDate
+                )
 
             console.print(table)
 
@@ -706,18 +764,19 @@ def lookup_by_number(number: str, output_format: str = "table"):
 def main():
     if len(sys.argv) < 2:
         rprint("[yellow]Usage:[/yellow]")
-        rprint("  invoice_search_jp init                           # データ初期化")
-        rprint("  invoice_search_jp update                         # データ更新（差分 or 全件を自動判定）")
-        rprint("  invoice_search_jp update --full                  # 全件データを強制再ダウンロード")
-        rprint("  invoice_search_jp status                         # データの状態を表示")
-        rprint("  invoice_search_jp search <事業者名>               # 事業者名で検索")
-        rprint("  invoice_search_jp search <事業者名> --page 2      # ページ指定")
-        rprint("  invoice_search_jp search <事業者名> --limit 50    # 表示件数指定")
-        rprint("  invoice_search_jp search <事業者名> --format csv  # CSV形式で出力")
-        rprint("  invoice_search_jp search <事業者名> --format json # JSON形式で出力")
-        rprint("  invoice_search_jp lookup <登録番号>               # 登録番号で検索")
-        rprint("  invoice_search_jp lookup <登録番号> --format csv  # CSV形式で出力")
-        rprint("  invoice_search_jp --version, -v                  # バージョン表示")
+        rprint("  invoice_search_jp init                            # データ初期化")
+        rprint("  invoice_search_jp update                          # データ更新（差分 or 全件を自動判定）")
+        rprint("  invoice_search_jp update --full                   # 全件データを強制再ダウンロード")
+        rprint("  invoice_search_jp status                               # データの状態を表示")
+        rprint("  invoice_search_jp search <事業者名>                 # 事業者名で検索")
+        rprint("  invoice_search_jp search <事業者名> --prefecture 東京 # 都道府県を指定して検索")
+        rprint("  invoice_search_jp search <事業者名> --page 2        # ページ指定")
+        rprint("  invoice_search_jp search <事業者名> --limit 50     # 表示件数指定")
+        rprint("  invoice_search_jp search <事業者名> --format csv   # CSV形式で出力")
+        rprint("  invoice_search_jp search <事業者名> --format json  # JSON形式で出力")
+        rprint("  invoice_search_jp lookup <登録番号>                # 登録番号で検索")
+        rprint("  invoice_search_jp lookup <登録番号> --format csv   # CSV形式で出力")
+        rprint("  invoice_search_jp --version, -v                   # バージョン表示")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -757,15 +816,19 @@ def main():
             sys.exit(1)
 
         query = sys.argv[2]
-        
+
         # オプション引数の解析
         limit = 20
         page = 1
         output_format = "table"
-        
+        prefecture = None
+
         i = 3
         while i < len(sys.argv):
-            if sys.argv[i] == "--limit" and i + 1 < len(sys.argv):
+            if sys.argv[i] == "--prefecture" and i + 1 < len(sys.argv):
+                prefecture = sys.argv[i + 1]
+                i += 2
+            elif sys.argv[i] == "--limit" and i + 1 < len(sys.argv):
                 try:
                     limit = int(sys.argv[i + 1])
                     if limit < 1:
@@ -794,8 +857,8 @@ def main():
             else:
                 rprint(f"[red]エラー:[/red] 不明なオプション '{sys.argv[i]}'")
                 sys.exit(1)
-        
-        search_by_name(query, limit=limit, page=page, output_format=output_format)
+
+        search_by_name(query, limit=limit, page=page, output_format=output_format, prefecture=prefecture)
 
     elif command == "lookup":
         if len(sys.argv) < 3:
