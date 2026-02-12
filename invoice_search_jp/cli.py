@@ -767,10 +767,10 @@ def main():
         rprint("  invoice_search_jp init                            # データ初期化")
         rprint("  invoice_search_jp update                          # データ更新（差分 or 全件を自動判定）")
         rprint("  invoice_search_jp update --full                   # 全件データを強制再ダウンロード")
-        rprint("  invoice_search_jp status                          # データの状態を表示")
-        rprint("  invoice_search_jp search <事業者名>                # 事業者名で検索")
-        rprint("  invoice_search_jp search <事業者名> -p 東京        # 都道府県を指定して検索")
-        rprint("  invoice_search_jp search <事業者名> --page 2       # ページ指定")
+        rprint("  invoice_search_jp status                               # データの状態を表示")
+        rprint("  invoice_search_jp search <事業者名>                 # 事業者名で検索")
+        rprint("  invoice_search_jp search <事業者名> --prefecture 東京 # 都道府県を指定して検索")
+        rprint("  invoice_search_jp search <事業者名> --page 2        # ページ指定")
         rprint("  invoice_search_jp search <事業者名> --limit 50     # 表示件数指定")
         rprint("  invoice_search_jp search <事業者名> --format csv   # CSV形式で出力")
         rprint("  invoice_search_jp search <事業者名> --format json  # JSON形式で出力")
@@ -825,7 +825,7 @@ def main():
 
         i = 3
         while i < len(sys.argv):
-            if sys.argv[i] in ("--prefecture", "-p") and i + 1 < len(sys.argv):
+            if sys.argv[i] == "--prefecture" and i + 1 < len(sys.argv):
                 prefecture = sys.argv[i + 1]
                 i += 2
             elif sys.argv[i] == "--limit" and i + 1 < len(sys.argv):

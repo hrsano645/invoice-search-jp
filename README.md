@@ -72,7 +72,7 @@ invoice_search_jp search "株式会社"
 invoice_search_jp search "北海道"
 
 # 都道府県を指定して検索
-invoice_search_jp search "株式会社" -p 東京
+invoice_search_jp search "株式会社" --prefecture 東京
 invoice_search_jp search "株式会社" --prefecture 大阪
 
 # 半角数字でも検索可能（自動で全角に変換）
