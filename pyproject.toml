@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "invoice-search-jp"
-version = "0.5.0"
+version = "0.5.1"
 description = "日本のインボイス登録事業者検索ツール"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -33,8 +33,33 @@ Homepage = "https://github.com/hrsano645/invoice-search-jp"
 Repository = "https://github.com/hrsano645/invoice-search-jp"
 Issues = "https://github.com/hrsano645/invoice-search-jp/issues"
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
 [project.scripts]
 invoice_search_jp = "invoice_search_jp.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["invoice_search_jp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/invoice_search_jp",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+exclude = [
+    "/.github",
+    "/.venv",
+    "/.claude",
+    "/data",
+    "*.csv",
+    "*.pdf",
+    "/batch_search.py",
+    "*.md",
+    "!README.md",
+]
